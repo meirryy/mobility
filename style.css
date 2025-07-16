@@ -1,29 +1,25 @@
-/* Reset html and body to fill full viewport with no margin/padding */
+/* Reset html and body to fill full viewport */
 html, body {
   height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
   background-color: #0d0d0d;
-  overflow: hidden; /* prevents unwanted scrollbars */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Make the map div fill entire viewport */
+/* Fullscreen map */
 #map {
-  position: fixed;  /* fix it relative to viewport */
+  position: fixed;
   top: 0;
   left: 0;
-  height: 100vh;
   width: 100vw;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  z-index: 0;  /* make sure no overlays accidentally cover it */
+  height: 100vh;
+  z-index: 0;
 }
 
+/* Attribution (bottom corner) styling */
 .leaflet-control-attribution {
   font-size: 0.6rem;
   color: #666;
@@ -32,49 +28,65 @@ html, body {
   right: 4px !important;
 }
 
+/* Floating controls container */
 #controls {
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(20,20,20,0.8);
+  background: rgba(15, 15, 15, 0.85);
   padding: 12px 20px;
-  border-radius: 12px;
-  box-shadow: 0 0 15px rgba(0,0,0,0.6);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   display: flex;
   gap: 10px;
   z-index: 1000;
   width: 90vw;
   max-width: 700px;
+  align-items: center;
 }
 
-#controls input {
-  flex-grow: 1;
-  padding: 8px 12px;
+/* Geocoder wrapper to allow flexible layout */
+.geocoder {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Override Mapbox geocoder styles */
+.mapboxgl-ctrl-geocoder {
+  width: 100%;
+  min-width: 0;
   border-radius: 8px;
-  border: none;
-  outline: none;
-  font-size: 1rem;
   background: #222;
   color: #eee;
 }
 
+.mapboxgl-ctrl-geocoder input {
+  color: #eee !important;
+  background: #222 !important;
+  border: none !important;
+  font-size: 1rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.mapboxgl-ctrl-geocoder input::placeholder {
+  color: #888;
+}
+
+/* Route button */
 #controls button {
-  background: #007AFF;
+  background: #007aff;
   border: none;
   border-radius: 8px;
-  padding: 8px 16px;
+  padding: 10px 16px;
   font-weight: 600;
   color: white;
   cursor: pointer;
   transition: background 0.3s ease;
+  white-space: nowrap;
 }
 
 #controls button:hover {
-  background: #005BBB;
-}
-
-.geocoder {
-  min-width: 0;
-  flex: 1;
+  background: #005bbb;
 }
