@@ -35,7 +35,7 @@ async function geocode(address) {
 }
 
 async function getRoute(start, end, profile) {
-  const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdiZWE3MzVmOTFmZjRmMjlhYTRhZDgxMGZiYTQyYjcwIiwiaCI6Im11cm11cjY0In0=";
+  const apiKey = "eyJvcmciOiI1IjoibjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdiZWE3MzVmOTFmZjRmMjlhYTRhZDgxMGZiYTQyYjcwIiwiaCI6Im11cm11cjY0In0=";
   const url = `https://api.openrouteservice.org/v2/directions/${profile}`;
   const body = {
     coordinates: [
@@ -62,12 +62,14 @@ mapboxgl.accessToken = 'pk.eyJ1IjoibWVpcnJ5IiwiYSI6ImNtZDVqNW5yYjAwNWUyaXBxNnVxd
 const startGeocoder = new MapboxGeocoder({
   accessToken: mapboxgl.accessToken,
   placeholder: "Start location",
-  mapboxgl: mapboxgl
+  mapboxgl: mapboxgl,
+  marker: false,
 });
 const endGeocoder = new MapboxGeocoder({
   accessToken: mapboxgl.accessToken,
   placeholder: "Destination",
-  mapboxgl: mapboxgl
+  mapboxgl: mapboxgl,
+  marker: false,
 });
 
 document.getElementById('start-geocoder').appendChild(startGeocoder.onAdd(map));
@@ -76,7 +78,7 @@ document.getElementById('end-geocoder').appendChild(endGeocoder.onAdd(map));
 let startCoords = null;
 let endCoords = null;
 
-// Set coords when user selects from suggestions
+// Update coords on selection
 startGeocoder.on('result', e => {
   startCoords = [e.result.center[1], e.result.center[0]];
   console.log('Start coords selected:', startCoords);
@@ -99,7 +101,7 @@ endGeocoder.on('clear', () => {
 document.getElementById('routeBtn').addEventListener('click', async () => {
   clearRoutes();
 
-  // Try to fallback to geocode typed input if no selection
+  // Fallback geocode typed input if no coords selected
   if (!startCoords) {
     const startInput = document.querySelector('#start-geocoder input');
     if (startInput && startInput.value.trim() !== '') {
@@ -132,7 +134,6 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
     }
   }
 
-  // Now fetch and draw routes
   try {
     const walkData = await getRoute(startCoords, endCoords, "foot-walking");
     const bikeData = await getRoute(startCoords, endCoords, "cycling-regular");
