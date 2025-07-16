@@ -73,3 +73,8 @@ html, body {
 #controls button:hover {
   background: #005BBB;
 }
+
+.geocoder {
+  min-width: 0;
+  flex: 1;
+}
