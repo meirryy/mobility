@@ -90,3 +90,13 @@ html, body {
 #controls button:hover {
   background: #005bbb;
 }
+
+/* Shift the input text (and placeholder) right to avoid the magnifying glass */
+.mapboxgl-ctrl-geocoder input {
+  padding-left: 32px !important; /* increase left padding so text doesn't overlap icon */
+}
+
+/* Optional: Make sure the icon stays visible nicely */
+.mapboxgl-ctrl-geocoder .mapboxgl-ctrl-icon {
+  left: 8px !important; /* adjust icon position if needed */
+}
