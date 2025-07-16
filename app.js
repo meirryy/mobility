@@ -238,3 +238,78 @@ map.on('dblclick', async (e) => {
     console.error(err);
   }
 });
+
+let selectingFromMap = false;
+let activeInputField = null;
+let clickMarker = null;
+
+// Reference to dropdown
+const dropdown = document.getElementById('map-select-dropdown');
+const mapSelectOption = document.getElementById('map-select-option');
+
+// Show dropdown on focus
+function attachMapDropdown(inputEl, field) {
+  inputEl.addEventListener('focus', (e) => {
+    activeInputField = field;
+    const rect = inputEl.getBoundingClientRect();
+    dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+    dropdown.style.left = `${rect.left + window.scrollX}px`;
+    dropdown.style.width = `${rect.width}px`;
+    dropdown.classList.remove('hidden');
+  });
+}
+
+// Hide dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!dropdown.contains(e.target)) {
+    dropdown.classList.add('hidden');
+  }
+});
+
+// Handle selection
+mapSelectOption.addEventListener('click', () => {
+  selectingFromMap = true;
+  dropdown.classList.add('hidden');
+  alert("Now double-click on the map to select a location.");
+});
+
+// Double-click map to select location
+map.on('dblclick', async (e) => {
+  if (!selectingFromMap || !activeInputField) return;
+
+  const { lat, lng } = e.latlng;
+
+  // Place marker
+  if (clickMarker) map.removeLayer(clickMarker);
+  clickMarker = L.marker([lat, lng]).addTo(map);
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+    const data = await res.json();
+    const address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+    const inputEl = document.querySelector(`#${activeInputField}-geocoder input`);
+    inputEl.value = address;
+
+    if (activeInputField === 'start') {
+      startCoords = [lat, lng];
+    } else {
+      endCoords = [lat, lng];
+    }
+
+    selectingFromMap = false;
+  } catch (err) {
+    alert("Error getting address from map click.");
+    console.error(err);
+  }
+});
+
+// Attach dropdown behavior after geocoders load
+setTimeout(() => {
+  const startInput = document.querySelector('#start-geocoder input');
+  const endInput = document.querySelector('#end-geocoder input');
+  if (startInput && endInput) {
+    attachMapDropdown(startInput, 'start');
+    attachMapDropdown(endInput, 'end');
+  }
+}, 1000);
