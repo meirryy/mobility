@@ -35,7 +35,7 @@ async function geocode(address) {
 }
 
 async function getRoute(start, end, profile) {
-  const apiKey = "eyJvcmciOiI1IjoibjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdiZWE3MzVmOTFmZjRmMjlhYTRhZDgxMGZiYTQyYjcwIiwiaCI6Im11cm11cjY0In0";
+  const apiKey = "eyJvcmciOiI1IjoibjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdiZWE3MzVmOTFmZjRmMjlhYTRhZDgxMGZiYTQyYjcwIiwiaCI6Im11cm11cjY0In0=";
   const url = `https://api.openrouteservice.org/v2/directions/${profile}`;
   const body = {
     coordinates: [
