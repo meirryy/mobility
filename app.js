@@ -1,14 +1,14 @@
-// Initialize the Leaflet map
+// Initialize Leaflet map
 const map = L.map('map', {
   zoomControl: false,
-  attributionControl: true  
+  attributionControl: true
 }).setView([42.2808, -83.7430], 13);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
   subdomains: 'abcd',
   maxZoom: 19,
-  detectRetina: true  
+  detectRetina: true
 }).addTo(map);
 
 let routeLayers = [];
@@ -20,9 +20,18 @@ function clearRoutes() {
 
 function drawRoute(geojson, color) {
   const layer = L.geoJSON(geojson, {
-    style: {color: color, weight: 5, opacity: 0.7}
+    style: { color: color, weight: 5, opacity: 0.7 }
   }).addTo(map);
   routeLayers.push(layer);
+}
+
+// Geocode function (fallback for typed input)
+async function geocode(address) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  if (data.length === 0) throw new Error("Location not found");
+  return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
 }
 
 async function getRoute(start, end, profile) {
@@ -43,10 +52,11 @@ async function getRoute(start, end, profile) {
     body: JSON.stringify(body)
   });
   const data = await response.json();
+  if (!data.features) throw new Error("Route data invalid");
   return data;
 }
 
-// MAPBOX Geocoder setup
+// Mapbox GL & Geocoder setup
 mapboxgl.accessToken = 'pk.eyJ1IjoibWVpcnJ5IiwiYSI6ImNtZDVqNW5yYjAwNWUyaXBxNnVxdnNwbWwifQ.7JH45nsFVDMECiBdhatvVw';
 
 const startGeocoder = new MapboxGeocoder({
@@ -66,69 +76,36 @@ document.getElementById('end-geocoder').appendChild(endGeocoder.onAdd(map));
 let startCoords = null;
 let endCoords = null;
 
+// Set coords when user selects from suggestions
 startGeocoder.on('result', e => {
   startCoords = [e.result.center[1], e.result.center[0]];
+  console.log('Start coords selected:', startCoords);
 });
 endGeocoder.on('result', e => {
   endCoords = [e.result.center[1], e.result.center[0]];
+  console.log('End coords selected:', endCoords);
 });
 
-document.getElementById('routeBtn').addEventListener('click', async () => {
-  clearRoutes();
-
-  if (!startCoords || !endCoords) {
-    alert("Please select both start and end locations.");
-    return;
-  }
-
-  try {
-    const walkData = await getRoute(startCoords, endCoords, "foot-walking");
-    const bikeData = await getRoute(startCoords, endCoords, "cycling-regular");
-
-    if (!walkData.features?.length || !bikeData.features?.length) {
-      throw new Error("No route found.");
-    }
-
-    drawRoute(walkData.features[0].geometry, 'lime');
-    drawRoute(bikeData.features[0].geometry, 'cyan');
-
-    const allCoords = [
-      ...walkData.features[0].geometry.coordinates,
-      ...bikeData.features[0].geometry.coordinates
-    ].map(c => [c[1], c[0]]);
-
-    const bounds = L.latLngBounds(allCoords);
-    map.fitBounds(bounds.pad(0.1));
-  } catch (err) {
-    alert("Error: " + err.message);
-    console.error(err);
-  }
-});
-
+// Reset coords if inputs cleared
 startGeocoder.on('clear', () => {
   startCoords = null;
+  console.log('Start coords cleared');
 });
 endGeocoder.on('clear', () => {
   endCoords = null;
+  console.log('End coords cleared');
 });
-
-async function geocode(address) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  if (data.length === 0) throw new Error("Location not found");
-  return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-}
 
 document.getElementById('routeBtn').addEventListener('click', async () => {
   clearRoutes();
 
-  // Fallback: if no selected coords, geocode typed input text manually
+  // Try to fallback to geocode typed input if no selection
   if (!startCoords) {
-    const input = document.querySelector('#start-geocoder input');
-    if (input?.value) {
+    const startInput = document.querySelector('#start-geocoder input');
+    if (startInput && startInput.value.trim() !== '') {
       try {
-        startCoords = await geocode(input.value);
+        startCoords = await geocode(startInput.value.trim());
+        console.log('Fallback geocoded startCoords:', startCoords);
       } catch {
         alert("Start location not found.");
         return;
@@ -140,10 +117,11 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
   }
 
   if (!endCoords) {
-    const input = document.querySelector('#end-geocoder input');
-    if (input?.value) {
+    const endInput = document.querySelector('#end-geocoder input');
+    if (endInput && endInput.value.trim() !== '') {
       try {
-        endCoords = await geocode(input.value);
+        endCoords = await geocode(endInput.value.trim());
+        console.log('Fallback geocoded endCoords:', endCoords);
       } catch {
         alert("End location not found.");
         return;
@@ -154,7 +132,7 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
     }
   }
 
-  // Now continue with your existing routing code...
+  // Now fetch and draw routes
   try {
     const walkData = await getRoute(startCoords, endCoords, "foot-walking");
     const bikeData = await getRoute(startCoords, endCoords, "cycling-regular");
