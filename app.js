@@ -155,10 +155,10 @@ map.on('dblclick', async (e) => {
     const data = await res.json();
    const a = data.address;
 const address = [
-  a.house_number,
+  a.house_number
   a.road,
   a.city || a.town || a.village,
-  a.state,
+  a.state
   a.postcode,
   a.country
 ].filter(Boolean).join(', ');
