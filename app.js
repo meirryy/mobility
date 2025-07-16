@@ -153,7 +153,15 @@ map.on('dblclick', async (e) => {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
     const data = await res.json();
-    const address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+   const a = data.address;
+const address = [
+  a.house_number,
+  a.road,
+  a.city || a.town || a.village,
+  a.state,
+  a.postcode,
+  a.country
+].filter(Boolean).join(', ');
     const input = document.querySelector(`#${activeField}-geocoder input`);
     input.value = address;
 
