@@ -35,11 +35,11 @@ async function geocode(address) {
 }
 
 async function getRoute(start, end, profile) {
-  const apiKey = "eyJvcmciOiI1IjoibjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdiZWE3MzVmOTFmZjRmMjlhYTRhZDgxMGZiYTQyYjcwIiwiaCI6Im11cm11cjY0In0=";
+  const apiKey = "5b3ce359785110001cf6248xxxxxx"; // Replace with your real OpenRouteService API key
   const url = `https://api.openrouteservice.org/v2/directions/${profile}`;
   const body = {
     coordinates: [
-      [start[1], start[0]],
+      [start[1], start[0]],  // [lon, lat]
       [end[1], end[0]]
     ]
   };
@@ -47,14 +47,21 @@ async function getRoute(start, end, profile) {
     method: 'POST',
     headers: {
       'Authorization': apiKey,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
     },
     body: JSON.stringify(body)
   });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+  
   const data = await response.json();
-  if (!data.features) throw new Error("Route data invalid");
   return data;
 }
+
 
 // Mapbox GL & Geocoder setup
 mapboxgl.accessToken = 'pk.eyJ1IjoibWVpcnJ5IiwiYSI6ImNtZDVqNW5yYjAwNWUyaXBxNnVxdnNwbWwifQ.7JH45nsFVDMECiBdhatvVw';
