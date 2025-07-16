@@ -104,3 +104,77 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
     console.error(err);
   }
 });
+
+startGeocoder.on('clear', () => {
+  startCoords = null;
+});
+endGeocoder.on('clear', () => {
+  endCoords = null;
+});
+
+async function geocode(address) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  if (data.length === 0) throw new Error("Location not found");
+  return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+}
+
+document.getElementById('routeBtn').addEventListener('click', async () => {
+  clearRoutes();
+
+  // Fallback: if no selected coords, geocode typed input text manually
+  if (!startCoords) {
+    const input = document.querySelector('#start-geocoder input');
+    if (input?.value) {
+      try {
+        startCoords = await geocode(input.value);
+      } catch {
+        alert("Start location not found.");
+        return;
+      }
+    } else {
+      alert("Please enter a start location.");
+      return;
+    }
+  }
+
+  if (!endCoords) {
+    const input = document.querySelector('#end-geocoder input');
+    if (input?.value) {
+      try {
+        endCoords = await geocode(input.value);
+      } catch {
+        alert("End location not found.");
+        return;
+      }
+    } else {
+      alert("Please enter an end location.");
+      return;
+    }
+  }
+
+  // Now continue with your existing routing code...
+  try {
+    const walkData = await getRoute(startCoords, endCoords, "foot-walking");
+    const bikeData = await getRoute(startCoords, endCoords, "cycling-regular");
+
+    if (!walkData.features?.length || !bikeData.features?.length) {
+      throw new Error("No route found.");
+    }
+
+    drawRoute(walkData.features[0].geometry, 'lime');
+    drawRoute(bikeData.features[0].geometry, 'cyan');
+
+    const allCoords = [
+      ...walkData.features[0].geometry.coordinates,
+      ...bikeData.features[0].geometry.coordinates
+    ].map(c => [c[1], c[0]]);
+
+    const bounds = L.latLngBounds(allCoords);
+    map.fitBounds(bounds.pad(0.1));
+  } catch (err) {
+    alert("Error: " + err.message);
+    console.error(err);
+  }
+});
