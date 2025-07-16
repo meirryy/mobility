@@ -92,3 +92,62 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
     alert("Error: " + err.message);
   }
 });
+
+mapboxgl.accessToken = 'YOUR_MAPBOX_TOKEN_HERE';
+
+// Create two geocoder inputs
+const startGeocoder = new MapboxGeocoder({
+  accessToken: mapboxgl.accessToken,
+  placeholder: "Start location",
+  mapboxgl: mapboxgl
+});
+const endGeocoder = new MapboxGeocoder({
+  accessToken: mapboxgl.accessToken,
+  placeholder: "Destination",
+  mapboxgl: mapboxgl
+});
+
+// Add them to the page
+document.getElementById('start-geocoder').appendChild(startGeocoder.onAdd(map));
+document.getElementById('end-geocoder').appendChild(endGeocoder.onAdd(map));
+
+let startCoords = null;
+let endCoords = null;
+
+// Listen for user selection
+startGeocoder.on('result', e => {
+  startCoords = [e.result.center[1], e.result.center[0]]; // lat, lon
+});
+endGeocoder.on('result', e => {
+  endCoords = [e.result.center[1], e.result.center[0]];
+});
+
+document.getElementById('routeBtn').addEventListener('click', async () => {
+  clearRoutes();
+  if (!startCoords || !endCoords) {
+    alert("Please select both start and end locations.");
+    return;
+  }
+
+  try {
+    const walkData = await getRoute(startCoords, endCoords, "foot-walking");
+    const bikeData = await getRoute(startCoords, endCoords, "cycling-regular");
+
+    if (!walkData.features?.length || !bikeData.features?.length) {
+      throw new Error("No route found.");
+    }
+
+    drawRoute(walkData.features[0].geometry, 'lime');
+    drawRoute(bikeData.features[0].geometry, 'cyan');
+
+    const allCoords = [
+      ...walkData.features[0].geometry.coordinates,
+      ...bikeData.features[0].geometry.coordinates
+    ].map(c => [c[1], c[0]]);
+
+    const bounds = L.latLngBounds(allCoords);
+    map.fitBounds(bounds.pad(0.1));
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+});
