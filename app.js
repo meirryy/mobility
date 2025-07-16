@@ -25,7 +25,6 @@ function drawRoute(geojson, color) {
   routeLayers.push(layer);
 }
 
-// Geocode function (fallback for typed input)
 async function geocode(address) {
   const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
   const response = await fetch(url);
@@ -35,11 +34,11 @@ async function geocode(address) {
 }
 
 async function getRoute(start, end, profile) {
-  const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdiZWE3MzVmOTFmZjRmMjlhYTRhZDgxMGZiYTQyYjcwIiwiaCI6Im11cm11cjY0In0="; // Replace with your real OpenRouteService API key
+  const apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjdiZWE3MzVmOTFmZjRmMjlhYTRhZDgxMGZiYTQyYjcwIiwiaCI6Im11cm11cjY0In0=";
   const url = `https://api.openrouteservice.org/v2/directions/${profile}`;
   const body = {
     coordinates: [
-      [start[1], start[0]],  // [lon, lat]
+      [start[1], start[0]],
       [end[1], end[0]]
     ]
   };
@@ -52,31 +51,29 @@ async function getRoute(start, end, profile) {
     },
     body: JSON.stringify(body)
   });
-  
+
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`);
+    throw new Error(`API error: ${response.status} - ${errorText}`);
   }
-  
-  const data = await response.json();
-  return data;
+
+  return await response.json();
 }
 
-
-// Mapbox GL & Geocoder setup
+// Mapbox Geocoder
 mapboxgl.accessToken = 'pk.eyJ1IjoibWVpcnJ5IiwiYSI6ImNtZDVqNW5yYjAwNWUyaXBxNnVxdnNwbWwifQ.7JH45nsFVDMECiBdhatvVw';
 
 const startGeocoder = new MapboxGeocoder({
   accessToken: mapboxgl.accessToken,
   placeholder: "Start location",
-  mapboxgl: mapboxgl,
-  marker: false,
+  mapboxgl,
+  marker: false
 });
 const endGeocoder = new MapboxGeocoder({
   accessToken: mapboxgl.accessToken,
   placeholder: "Destination",
-  mapboxgl: mapboxgl,
-  marker: false,
+  mapboxgl,
+  marker: false
 });
 
 document.getElementById('start-geocoder').appendChild(startGeocoder.onAdd(map));
@@ -84,37 +81,103 @@ document.getElementById('end-geocoder').appendChild(endGeocoder.onAdd(map));
 
 let startCoords = null;
 let endCoords = null;
+let selectingFromMap = false;
+let activeField = null;
+let clickMarker = null;
 
-// Update coords on selection
+// Set coords on result
 startGeocoder.on('result', e => {
   startCoords = [e.result.center[1], e.result.center[0]];
-  console.log('Start coords selected:', startCoords);
 });
 endGeocoder.on('result', e => {
   endCoords = [e.result.center[1], e.result.center[0]];
-  console.log('End coords selected:', endCoords);
 });
 
-// Reset coords if inputs cleared
-startGeocoder.on('clear', () => {
-  startCoords = null;
-  console.log('Start coords cleared');
-});
-endGeocoder.on('clear', () => {
-  endCoords = null;
-  console.log('End coords cleared');
+startGeocoder.on('clear', () => { startCoords = null; });
+endGeocoder.on('clear', () => { endCoords = null; });
+
+// Focus → show dropdown
+function enableMapDropdown(input, field) {
+  input.addEventListener('focus', () => {
+    activeField = field;
+    const dropdown = document.createElement('div');
+    dropdown.textContent = "📍 Double click on map to select location";
+    dropdown.style.position = 'absolute';
+    dropdown.style.background = '#1a1a1a';
+    dropdown.style.color = '#fff';
+    dropdown.style.padding = '8px';
+    dropdown.style.cursor = 'pointer';
+    dropdown.style.zIndex = 999;
+
+    const rect = input.getBoundingClientRect();
+    dropdown.style.left = `${rect.left + window.scrollX}px`;
+    dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+    dropdown.style.width = `${rect.width}px`;
+
+    dropdown.addEventListener('click', () => {
+      selectingFromMap = true;
+      dropdown.remove();
+      alert("Now double-click on the map to choose a location.");
+    });
+
+    document.body.appendChild(dropdown);
+
+    // Auto close on outside click
+    const removeIfClickOutside = e => {
+      if (!dropdown.contains(e.target) && e.target !== input) {
+        dropdown.remove();
+        document.removeEventListener('click', removeIfClickOutside);
+      }
+    };
+    document.addEventListener('click', removeIfClickOutside);
+  });
+}
+
+setTimeout(() => {
+  const startInput = document.querySelector('#start-geocoder input');
+  const endInput = document.querySelector('#end-geocoder input');
+  if (startInput && endInput) {
+    enableMapDropdown(startInput, 'start');
+    enableMapDropdown(endInput, 'end');
+  }
+}, 1000);
+
+// Map double-click to select coords
+map.on('dblclick', async (e) => {
+  if (!selectingFromMap || !activeField) return;
+
+  const { lat, lng } = e.latlng;
+  if (clickMarker) map.removeLayer(clickMarker);
+  clickMarker = L.marker([lat, lng]).addTo(map);
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+    const data = await res.json();
+    const address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    const input = document.querySelector(`#${activeField}-geocoder input`);
+    input.value = address;
+
+    if (activeField === 'start') {
+      startCoords = [lat, lng];
+    } else {
+      endCoords = [lat, lng];
+    }
+  } catch (err) {
+    alert("Reverse geocoding failed.");
+    console.error(err);
+  }
+
+  selectingFromMap = false;
 });
 
 document.getElementById('routeBtn').addEventListener('click', async () => {
   clearRoutes();
 
-  // Fallback geocode typed input if no coords selected
   if (!startCoords) {
-    const startInput = document.querySelector('#start-geocoder input');
-    if (startInput && startInput.value.trim() !== '') {
+    const input = document.querySelector('#start-geocoder input');
+    if (input && input.value.trim()) {
       try {
-        startCoords = await geocode(startInput.value.trim());
-        console.log('Fallback geocoded startCoords:', startCoords);
+        startCoords = await geocode(input.value.trim());
       } catch {
         alert("Start location not found.");
         return;
@@ -126,11 +189,10 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
   }
 
   if (!endCoords) {
-    const endInput = document.querySelector('#end-geocoder input');
-    if (endInput && endInput.value.trim() !== '') {
+    const input = document.querySelector('#end-geocoder input');
+    if (input && input.value.trim()) {
       try {
-        endCoords = await geocode(endInput.value.trim());
-        console.log('Fallback geocoded endCoords:', endCoords);
+        endCoords = await geocode(input.value.trim());
       } catch {
         alert("End location not found.");
         return;
@@ -157,159 +219,10 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
       ...bikeData.features[0].geometry.coordinates
     ].map(c => [c[1], c[0]]);
 
-    const bounds = L.latLngBounds(allCoords);
-    map.fitBounds(bounds.pad(0.1));
+    map.fitBounds(L.latLngBounds(allCoords).pad(0.1));
   } catch (err) {
     alert("Error: " + err.message);
     console.error(err);
   }
 });
 
-let selectingFromMap = false;
-let activeInputField = 'start';
-let clickMarker;
-
-// Append "select on map" option reliably
-function addMapSelectOptionToInput(inputEl, field) {
-  inputEl.addEventListener('focus', () => {
-    activeInputField = field;
-
-    // Wait for suggestions to load
-    setTimeout(() => {
-      const container = inputEl.parentNode;
-      const dropdown = container.querySelector('.suggestions');
-
-      // Prevent duplicates
-      if (dropdown && !dropdown.querySelector('.map-select-option')) {
-        const option = document.createElement('div');
-        option.className = 'map-select-option';
-        option.textContent = '📍 Double click on map to select location';
-        option.style.padding = '8px';
-        option.style.cursor = 'pointer';
-        option.style.background = '#1a1a1a';
-        option.style.color = '#eee';
-
-        option.addEventListener('click', () => {
-          selectingFromMap = true;
-          alert("Double click on the map to choose a location.");
-        });
-
-        dropdown.prepend(option);
-      }
-    }, 400);
-  });
-}
-
-// Apply to both geocoder inputs
-setTimeout(() => {
-  const startInput = document.querySelector('#start-geocoder input');
-  const endInput = document.querySelector('#end-geocoder input');
-  if (startInput && endInput) {
-    addMapSelectOptionToInput(startInput, 'start');
-    addMapSelectOptionToInput(endInput, 'end');
-  }
-}, 1000);  // Wait until geocoder renders
-
-map.on('dblclick', async (e) => {
-  if (!selectingFromMap) return;
-
-  const { lat, lng } = e.latlng;
-
-  // Place or move pin
-  if (clickMarker) map.removeLayer(clickMarker);
-  clickMarker = L.marker([lat, lng]).addTo(map);
-
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
-    const data = await res.json();
-    const address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-
-    if (activeInputField === 'start') {
-      document.querySelector('#start-geocoder input').value = address;
-      startCoords = [lat, lng];
-    } else {
-      document.querySelector('#end-geocoder input').value = address;
-      endCoords = [lat, lng];
-    }
-
-    selectingFromMap = false;
-  } catch (err) {
-    alert("Reverse geocoding failed.");
-    console.error(err);
-  }
-});
-
-let selectingFromMap = false;
-let activeInputField = null;
-let clickMarker = null;
-
-// Reference to dropdown
-const dropdown = document.getElementById('map-select-dropdown');
-const mapSelectOption = document.getElementById('map-select-option');
-
-// Show dropdown on focus
-function attachMapDropdown(inputEl, field) {
-  inputEl.addEventListener('focus', (e) => {
-    activeInputField = field;
-    const rect = inputEl.getBoundingClientRect();
-    dropdown.style.top = `${rect.bottom + window.scrollY}px`;
-    dropdown.style.left = `${rect.left + window.scrollX}px`;
-    dropdown.style.width = `${rect.width}px`;
-    dropdown.classList.remove('hidden');
-  });
-}
-
-// Hide dropdown on outside click
-document.addEventListener('click', (e) => {
-  if (!dropdown.contains(e.target)) {
-    dropdown.classList.add('hidden');
-  }
-});
-
-// Handle selection
-mapSelectOption.addEventListener('click', () => {
-  selectingFromMap = true;
-  dropdown.classList.add('hidden');
-  alert("Now double-click on the map to select a location.");
-});
-
-// Double-click map to select location
-map.on('dblclick', async (e) => {
-  if (!selectingFromMap || !activeInputField) return;
-
-  const { lat, lng } = e.latlng;
-
-  // Place marker
-  if (clickMarker) map.removeLayer(clickMarker);
-  clickMarker = L.marker([lat, lng]).addTo(map);
-
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
-    const data = await res.json();
-    const address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-
-    const inputEl = document.querySelector(`#${activeInputField}-geocoder input`);
-    inputEl.value = address;
-
-    if (activeInputField === 'start') {
-      startCoords = [lat, lng];
-    } else {
-      endCoords = [lat, lng];
-    }
-
-    selectingFromMap = false;
-  } catch (err) {
-    alert("Error getting address from map click.");
-    console.error(err);
-  }
-});
-
-// Attach dropdown behavior after geocoders load
-setTimeout(() => {
-  const startInput = document.querySelector('#start-geocoder input');
-  const endInput = document.querySelector('#end-geocoder input');
-  if (startInput && endInput) {
-    attachMapDropdown(startInput, 'start');
-    attachMapDropdown(endInput, 'end');
-  }
-}, 1000);
