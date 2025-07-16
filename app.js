@@ -93,7 +93,7 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
   }
 });
 
-mapboxgl.accessToken = 'YOUR_MAPBOX_TOKEN_HERE';
+mapboxgl.accessToken = 'pk.eyJ1IjoibWVpcnJ5IiwiYSI6ImNtZDVqNW5yYjAwNWUyaXBxNnVxdnNwbWwifQ.7JH45nsFVDMECiBdhatvVw';
 
 // Create two geocoder inputs
 const startGeocoder = new MapboxGeocoder({
