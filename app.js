@@ -165,53 +165,60 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
   }
 });
 
-// Track whether user is in "select from map" mode
 let selectingFromMap = false;
 let activeInputField = 'start';
 let clickMarker;
 
-// Add a custom option to each Mapbox Geocoder input
-function addMapSelectOption(geocoderElement, inputType) {
-  const input = geocoderElement.querySelector('input');
+// Append "select on map" option reliably
+function addMapSelectOptionToInput(inputEl, field) {
+  inputEl.addEventListener('focus', () => {
+    activeInputField = field;
 
-  input.addEventListener('focus', () => {
-    activeInputField = inputType;
+    // Wait for suggestions to load
     setTimeout(() => {
-      const dropdown = geocoderElement.querySelector('.suggestions');
-      if (!dropdown) return;
+      const container = inputEl.parentNode;
+      const dropdown = container.querySelector('.suggestions');
 
-      const customOption = document.createElement('div');
-      customOption.className = 'map-select-option';
-      customOption.innerHTML = '📍 Double click on map to select location';
-      customOption.style.padding = '8px';
-      customOption.style.cursor = 'pointer';
-      customOption.style.background = '#1a1a1a';
-      customOption.style.color = '#eee';
-      customOption.addEventListener('click', () => {
-        selectingFromMap = true;
-        alert("Now double click on the map to choose a location.");
-      });
+      // Prevent duplicates
+      if (dropdown && !dropdown.querySelector('.map-select-option')) {
+        const option = document.createElement('div');
+        option.className = 'map-select-option';
+        option.textContent = '📍 Double click on map to select location';
+        option.style.padding = '8px';
+        option.style.cursor = 'pointer';
+        option.style.background = '#1a1a1a';
+        option.style.color = '#eee';
 
-      dropdown.prepend(customOption);
-    }, 300);
+        option.addEventListener('click', () => {
+          selectingFromMap = true;
+          alert("Double click on the map to choose a location.");
+        });
+
+        dropdown.prepend(option);
+      }
+    }, 400);
   });
 }
 
-// Call this after geocoder is mounted
-addMapSelectOption(document.getElementById('start-geocoder'), 'start');
-addMapSelectOption(document.getElementById('end-geocoder'), 'end');
+// Apply to both geocoder inputs
+setTimeout(() => {
+  const startInput = document.querySelector('#start-geocoder input');
+  const endInput = document.querySelector('#end-geocoder input');
+  if (startInput && endInput) {
+    addMapSelectOptionToInput(startInput, 'start');
+    addMapSelectOptionToInput(endInput, 'end');
+  }
+}, 1000);  // Wait until geocoder renders
 
-// Double-click on map to pick location
 map.on('dblclick', async (e) => {
   if (!selectingFromMap) return;
 
   const { lat, lng } = e.latlng;
 
-  // Place or move marker
+  // Place or move pin
   if (clickMarker) map.removeLayer(clickMarker);
   clickMarker = L.marker([lat, lng]).addTo(map);
 
-  // Reverse geocode
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
     const data = await res.json();
@@ -227,7 +234,7 @@ map.on('dblclick', async (e) => {
 
     selectingFromMap = false;
   } catch (err) {
-    alert("Failed to reverse geocode.");
+    alert("Reverse geocoding failed.");
     console.error(err);
   }
 });
