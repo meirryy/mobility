@@ -164,3 +164,70 @@ document.getElementById('routeBtn').addEventListener('click', async () => {
     console.error(err);
   }
 });
+
+// Track whether user is in "select from map" mode
+let selectingFromMap = false;
+let activeInputField = 'start';
+let clickMarker;
+
+// Add a custom option to each Mapbox Geocoder input
+function addMapSelectOption(geocoderElement, inputType) {
+  const input = geocoderElement.querySelector('input');
+
+  input.addEventListener('focus', () => {
+    activeInputField = inputType;
+    setTimeout(() => {
+      const dropdown = geocoderElement.querySelector('.suggestions');
+      if (!dropdown) return;
+
+      const customOption = document.createElement('div');
+      customOption.className = 'map-select-option';
+      customOption.innerHTML = '📍 Double click on map to select location';
+      customOption.style.padding = '8px';
+      customOption.style.cursor = 'pointer';
+      customOption.style.background = '#1a1a1a';
+      customOption.style.color = '#eee';
+      customOption.addEventListener('click', () => {
+        selectingFromMap = true;
+        alert("Now double click on the map to choose a location.");
+      });
+
+      dropdown.prepend(customOption);
+    }, 300);
+  });
+}
+
+// Call this after geocoder is mounted
+addMapSelectOption(document.getElementById('start-geocoder'), 'start');
+addMapSelectOption(document.getElementById('end-geocoder'), 'end');
+
+// Double-click on map to pick location
+map.on('dblclick', async (e) => {
+  if (!selectingFromMap) return;
+
+  const { lat, lng } = e.latlng;
+
+  // Place or move marker
+  if (clickMarker) map.removeLayer(clickMarker);
+  clickMarker = L.marker([lat, lng]).addTo(map);
+
+  // Reverse geocode
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+    const data = await res.json();
+    const address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+    if (activeInputField === 'start') {
+      document.querySelector('#start-geocoder input').value = address;
+      startCoords = [lat, lng];
+    } else {
+      document.querySelector('#end-geocoder input').value = address;
+      endCoords = [lat, lng];
+    }
+
+    selectingFromMap = false;
+  } catch (err) {
+    alert("Failed to reverse geocode.");
+    console.error(err);
+  }
+});
